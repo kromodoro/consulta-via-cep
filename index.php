@@ -1,3 +1,9 @@
+<?php
+
+$consulta = 'consulta';
+$campos = ['CEP','Logradouro','Complemento','Bairro','Cidade','Estado'];
+
+?>
 <!doctype html>
 <html lang="en">
 <head>
@@ -24,12 +30,14 @@
 								name="consulta" 
 								id="consulta" 
 								class="form-control"
-								value="<?php echo ($_GET['consulta']) ?? '' ?>"
+								value="<?php echo ($_GET[$consulta]) ?? '' ?>"
 								placeholder="00000-000"
+								required
+								autofocus
 								/>
 							</div>
 							<div class="form-group text-center">
-								<button type="submit" class="btn btn-primary">Consutlar</button>
+								<button type="submit" class="btn btn-primary">Consultar</button>
 							</div>
 						</form>
 					</div>
@@ -41,86 +49,62 @@
 				<table class="table table-striped table-dark text-white">
 					<thead>
 						<tr>
-							<th>CEP</th>
-							<th>Logradouro</th>
-							<th>Complemento</th>
-							<th>Bairro</th>
-							<th>Cidade</th>
-							<th>Estado</th>
+							<?php
+
+								foreach ($campos as $chave => $valor) echo "<th>{$valor}</th>";
+
+							?>
 						</tr>
 					</thead>
 					<tbody>
 						<tr>
 							<?php
 
-							if ($_GET) {
+							if ($_GET[$consulta]) {
 
-								foreach ($_GET as $key => $value) {
+								$cleaner_cep = preg_replace("/[^0-9]/i", '', trim($_GET[$consulta]));
+								$cep = substr($cleaner_cep, 0,8);
 
-									if (empty($value)) {
+								if (strlen($cep) == 8) {
 
-										echo "<td class='text-center text-warning' colspan='6'>O campo CEP está vazio</td>";
+									$url = "https://viacep.com.br/ws/{$cep}/json/";
+									$return = json_decode(file_get_contents($url), true);
 
-									} elseif (strlen($value) >= 8 || strlen($value) <= 9) {
+									if (!isset($return['erro'])) {
 
-										$char_separator = (strlen($value) == 9) ? 
-															substr($value,5, -3) : '';
+										foreach ($campos as $chave => $valor) {
 
-										$value = str_replace($char_separator, '', $value);
-
-										if (preg_match("/^[0-9]*$/", $value)) {
-
-											$return = json_decode(file_get_contents("https://viacep.com.br/ws/{$value}/json/"), true);
-
-											if (!isset($return['erro'])) {
-
-												echo "<td>{$return['cep']}</td>";
-												echo "<td>{$return['logradouro']}</td>";
-												echo "<td>{$return['complemento']}</td>";
-												echo "<td>{$return['bairro']}</td>";
-												echo "<td>{$return['localidade']}</td>";
-												echo "<td>{$return['uf']}</td>";
-
-											} else {
-
-												echo "<td class='text-center text-warning' colspan='6'>CEP não encontrado!</td>";
-
+											switch(strtolower($valor)) {
+												case 'cidade':
+												$valor = 'localidade';
+												break;
+												case 'estado':
+												$valor = 'uf';
+												break;
 											}
 
-										} else {
+											echo "<td>{$return[strtolower($valor)]}</td>";
 
-											echo "<td class='text-center text-danger' colspan='6'>O valor <span class='text-white'>{$value}</span> não é um CEP válido!</td>";
 										}
 
 									} else {
-
-										echo "<td class='text-center text-warning' colspan='6'>CEP inválido, quantidade máxima aceita de numeros é 8</td>";
+										echo "<td colspan='6' class='text-warning text-center'>
+														O CEP [{$cep}] não foi localizado!</td>";
 									}
-
+								} else {
+									echo "<td colspan='6' class='text-warning text-center'>
+									O CEP [{$_GET[$consulta]}] é inválido para consulta!</td>";
 								}
 
 							} else {
-
-								echo "<td class='text-center' colspan='6'>Não existem dados para serem exibidos</td>";
+								echo "<td colspan='6' class='text-warning text-center'>
+														Por favor preencha o CEP!</td>";
 							}
+
 							?>
 						</tr>
 					</tbody>
 				</table>
-			</div>
-		</div>
-
-		<div class="row shadow border border-info">
-			<div class="col">
-				<h3 class="text-warning text-center my-2">Lista de normalizações e correções</h3>
-				<ol class="nav flex-column text-info">
-					<li class="nav-item">Envio de consulta VAZIO</li>
-					<li class="nav-item">CEP com menos de 8 caracteres ou mais de 9</li>
-					<li class="nav-item">Caractere separador diferente de '-' correção dinâmica</li>
-					<li class="nav-item">Somente números</li>
-					<li class="nav-item">CEP não encontrado</li>
-					<li class="nav-item">CEP inválido</li>
-				</ol>
 			</div>
 		</div>
 	</div>
